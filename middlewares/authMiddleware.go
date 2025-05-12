@@ -12,7 +12,7 @@ import (
 
 type contextKey string
 
-func AuthMiddleware(next http.HandlerFunc, route definitions.Route) http.HandlerFunc {
+func AuthMiddleware(next http.HandlerFunc, route definitions.Route, cxt context.Context) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if route.Auth == nil {
 			fmt.Println("No auth middleware defined for this route, allowing access")

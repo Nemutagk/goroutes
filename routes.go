@@ -1,14 +1,21 @@
 package goroutes
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
+	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
 )
 
-func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, defaultMiddlewares []definitions.Middleware, notFoundHandler http.HandlerFunc) *http.ServeMux {
+func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, defaultMiddlewares []definitions.Middleware, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
 	globalRouteList := map[string]definitions.Route{}
+	type contextKey string
+	const dbConnectionsKey contextKey = "dbConnectionsList"
+
+	ctx := context.WithValue(context.TODO(), dbConnectionsKey, dbConnectionsList)
+
 	for _, groupRoute := range list_routes {
 		routes := checkRouteGroup(groupRoute, "")
 
@@ -28,7 +35,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, def
 		}
 
 		// fmt.Println("Route: ", path, "Method: ", route.Method)
-		server.HandleFunc(path, applyMiddleware(route))
+		server.HandleFunc(path, applyMiddleware(route, ctx))
 	}
 
 	server.HandleFunc("/notfound", func(res http.ResponseWriter, req *http.Request) {
@@ -151,10 +158,10 @@ func validateMiddleware(route definitions.Route, defaultMiddleware []definitions
 	return route
 }
 
-func applyMiddleware(route definitions.Route) http.HandlerFunc {
+func applyMiddleware(route definitions.Route, cxt context.Context) http.HandlerFunc {
 	if route.Group == nil {
 		for _, middleware := range route.Middlewares {
-			route.Action = middleware(route.Action, route)
+			route.Action = middleware(route.Action, route, cxt)
 		}
 
 		return route.Action
@@ -162,7 +169,7 @@ func applyMiddleware(route definitions.Route) http.HandlerFunc {
 		return func(res http.ResponseWriter, req *http.Request) {
 			if sub_route, exists := route.Group[req.Method]; exists {
 				for _, middleware := range sub_route.Middlewares {
-					sub_route.Action = middleware(sub_route.Action, sub_route)
+					sub_route.Action = middleware(sub_route.Action, sub_route, cxt)
 				}
 
 				sub_route.Action(res, req)
