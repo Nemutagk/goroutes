@@ -169,6 +169,17 @@ func applyMiddleware(route definitions.Route) http.HandlerFunc {
 				return
 			}
 
+			if req.Method == http.MethodOptions {
+				fmt.Println("CORS preflight request")
+				res.Header().Set("Access-Control-Allow-Origin", "*")
+				res.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				res.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+				fmt.Println("CORS preflight request")
+				res.WriteHeader(http.StatusOK)
+				return
+			}
+
 			fmt.Println("the methods does not exists in the group!")
 			fmt.Println("The route " + route.Path + " and method " + req.Method + " does not mapped in the routes")
 
