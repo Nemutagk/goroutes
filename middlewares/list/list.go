@@ -6,7 +6,8 @@ import (
 )
 
 var ListDefaultMiddlewares = []definitions.Middleware{
-	middlewares.AccessMiddleware,
-	middlewares.MethodMiddleware,
 	middlewares.AuthMiddleware,
+	middlewares.MethodMiddleware,
+	middlewares.AccessMiddleware,
+	middlewares.CorsMiddleware,
 }

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/Nemutagk/godb"
-	dbDefinitions "github.com/Nemutagk/godb/definitions/db"
+	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/helper"
 
@@ -22,7 +22,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func AccessMiddleware(next http.HandlerFunc, route definitions.Route, cxt context.Context) http.HandlerFunc {
+func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(wr http.ResponseWriter, r *http.Request) {
 		fmt.Println("AccessMiddleware called")
 		clientRealIp := r.Header.Get("X-Forwarded-For")
@@ -40,26 +40,33 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, cxt contex
 			clientIp = strings.Split(clientIp, ":")[0]
 		}
 
-		listConnection := cxt.Value("dbConnectionsList").(map[string]dbDefinitions.DbConnection)
+		if dbListConn == nil {
+			fmt.Println("No database connection list provided")
+			wr.WriteHeader(http.StatusInternalServerError)
+			wr.Write([]byte("Internal server error"))
+			return
 
-		conn := godb.InitConnections(listConnection)
-		dbConn, err_con := conn.GetConnection(helper.GetEnv("DB_LOGS_CONNECTION", "mongodb"))
+		}
+
+		conn := godb.InitConnections(dbListConn)
+		dbConnRaw, err_con := conn.GetConnection(helper.GetEnv("DB_LOGS_CONNECTION", "mongodb"))
 		if err_con != nil {
 			fmt.Println("Error getting database connection:", err_con)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
 		}
-
-		mongoDb, ok := dbConn.(*mongo.Database)
+		dbClient, ok := dbConnRaw.(*mongo.Client)
 		if !ok {
-			fmt.Println("Error casting database connection to *mongo.Database")
+			fmt.Println("Error casting database connection to *mongo.Client")
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
 		}
 
-		coll := mongoDb.Collection("ip_black_list")
+		dbConn := dbClient.Database(helper.GetEnv("DB_LOGS_DATABASE", "sb_logs"))
+
+		coll := dbConn.Collection("ip_black_list")
 		var result map[string]interface{}
 
 		err := coll.FindOne(r.Context(), map[string]interface{}{
@@ -77,7 +84,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, cxt contex
 			return
 		}
 
-		collAccess := mongoDb.Collection("access")
+		collAccess := dbConn.Collection("access")
 		access_list, err_list := collAccess.Find(r.Context(), map[string]interface{}{
 			"ip":            clientIp,
 			"response_code": http.StatusNotFound,
@@ -154,7 +161,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, cxt contex
 		}
 
 		//Registramos el acceso
-		coll = mongoDb.Collection("access")
+		coll = dbConn.Collection("access")
 		body, newBody := mapBody(r.Body)
 		r.Body = newBody
 		_, err = coll.InsertOne(r.Context(), map[string]interface{}{

@@ -1,7 +1,6 @@
 package goroutes
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
@@ -11,10 +10,6 @@ import (
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, defaultMiddlewares []definitions.Middleware, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
 	globalRouteList := map[string]definitions.Route{}
-	type contextKey string
-	const dbConnectionsKey contextKey = "dbConnectionsList"
-
-	ctx := context.WithValue(context.TODO(), dbConnectionsKey, dbConnectionsList)
 
 	for _, groupRoute := range list_routes {
 		routes := checkRouteGroup(groupRoute, "")
@@ -35,7 +30,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, def
 		}
 
 		// fmt.Println("Route: ", path, "Method: ", route.Method)
-		server.HandleFunc(path, applyMiddleware(route, ctx))
+		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
 	server.HandleFunc("/notfound", func(res http.ResponseWriter, req *http.Request) {
@@ -158,10 +153,10 @@ func validateMiddleware(route definitions.Route, defaultMiddleware []definitions
 	return route
 }
 
-func applyMiddleware(route definitions.Route, cxt context.Context) http.HandlerFunc {
+func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	if route.Group == nil {
 		for _, middleware := range route.Middlewares {
-			route.Action = middleware(route.Action, route, cxt)
+			route.Action = middleware(route.Action, route, dbListConn)
 		}
 
 		return route.Action
@@ -169,7 +164,7 @@ func applyMiddleware(route definitions.Route, cxt context.Context) http.HandlerF
 		return func(res http.ResponseWriter, req *http.Request) {
 			if sub_route, exists := route.Group[req.Method]; exists {
 				for _, middleware := range sub_route.Middlewares {
-					sub_route.Action = middleware(sub_route.Action, sub_route, cxt)
+					sub_route.Action = middleware(sub_route.Action, sub_route, dbListConn)
 				}
 
 				sub_route.Action(res, req)

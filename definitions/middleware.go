@@ -1,8 +1,9 @@
 package definitions
 
 import (
-	"context"
 	"net/http"
+
+	"github.com/Nemutagk/godb/definitions/db"
 )
 
-type Middleware func(w http.HandlerFunc, route Route, cxt context.Context) http.HandlerFunc
+type Middleware func(w http.HandlerFunc, route Route, dbListConn map[string]db.DbConnection) http.HandlerFunc

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/helper"
 	"github.com/Nemutagk/goroutes/service"
@@ -12,8 +13,9 @@ import (
 
 type contextKey string
 
-func AuthMiddleware(next http.HandlerFunc, route definitions.Route, cxt context.Context) http.HandlerFunc {
+func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("AuthMiddleware called")
 		if route.Auth == nil {
 			fmt.Println("No auth middleware defined for this route, allowing access")
 
