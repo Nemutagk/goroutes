@@ -177,8 +177,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			"created_at": time.Now(),
 			"updated_at": time.Now(),
 		}
-		fmt.Println("request")
-		helper.PrettyPrint(body_save)
+		fmt.Println("request",body_save)
 
 		_, err = coll.InsertOne(r.Context(), body_save)
 
