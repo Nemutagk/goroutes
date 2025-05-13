@@ -164,7 +164,8 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		coll = dbConn.Collection("access")
 		body, newBody := mapBody(r.Body)
 		r.Body = newBody
-		_, err = coll.InsertOne(r.Context(), map[string]interface{}{
+
+		body_save := map[string]interface{}{
 			"_id":        helper.GenerateUuid(),
 			"app":        helper.GetEnv("APP_NAME", "sbframework"),
 			"ip":         clientIp,
@@ -175,7 +176,11 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			"header":     r.Header,
 			"created_at": time.Now(),
 			"updated_at": time.Now(),
-		})
+		}
+		fmt.Println("request")
+		helper.PrettyPrint(body_save)
+
+		_, err = coll.InsertOne(r.Context(), body_save)
 
 		if err != nil {
 			fmt.Println("Error inserting access log:", err)
