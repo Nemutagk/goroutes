@@ -64,7 +64,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			return
 		}
 
-		dbConn := dbClient.Database(helper.GetEnv("DB_LOGS_DATABASE", "sb_logs"))
+		dbConn := dbClient.Database(helper.GetEnv("DB_LOGS_DB", "sb_logs"))
 
 		coll := dbConn.Collection("ip_black_list")
 		var result map[string]interface{}
