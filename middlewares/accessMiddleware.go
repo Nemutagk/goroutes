@@ -16,6 +16,7 @@ import (
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/helper"
+	"github.com/Nemutagk/goenvars"
 
 	"github.com/gofrs/uuid"
 	"go.mongodb.org/mongo-driver/bson"
@@ -49,7 +50,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		}
 
 		conn := godb.InitConnections(dbListConn)
-		dbConnRaw, err_con := conn.GetConnection(helper.GetEnv("DB_LOGS_CONNECTION", "mongodb"))
+		dbConnRaw, err_con := conn.GetConnection(goenvars.GetEnv("DB_LOGS_CONNECTION", "mongodb"))
 		if err_con != nil {
 			fmt.Println("Error getting database connection:", err_con)
 			wr.WriteHeader(http.StatusInternalServerError)
@@ -64,7 +65,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			return
 		}
 
-		dbConn := dbClient.Database(helper.GetEnv("DB_LOGS_DB", "sb_logs"))
+		dbConn := dbClient.Database(goenvars.GetEnv("DB_LOGS_DB", "sb_logs"))
 
 		coll := dbConn.Collection("ip_black_list")
 		var result map[string]interface{}
@@ -104,7 +105,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			count++
 		}
 
-		max_access_string := helper.GetEnv("MAX_ACCESS", "10")
+		max_access_string := goenvars.GetEnv("MAX_ACCESS", "10")
 		max_access, _ := strconv.Atoi(max_access_string)
 
 		fmt.Println("Count of access logs in the last 10 minutes: " + strconv.Itoa(count) + ":" + max_access_string)
@@ -143,7 +144,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			count_denied_access++
 		}
 
-		max_denied_acces_string := helper.GetEnv("MAX_DENIED_ACCESS", "3")
+		max_denied_acces_string := goenvars.GetEnv("MAX_DENIED_ACCESS", "3")
 		max_denied_acces, _ := strconv.Atoi(max_denied_acces_string)
 		if count_denied_access > max_denied_acces {
 			// IP is blacklisted
@@ -167,7 +168,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		body_save := map[string]interface{}{
 			"_id":        helper.GenerateUuid(),
-			"app":        helper.GetEnv("APP_NAME", "sbframework"),
+			"app":        goenvars.GetEnv("APP_NAME", "sbframework"),
 			"ip":         clientIp,
 			"real_ip":    clientRealIp,
 			"method":     route.Method,
