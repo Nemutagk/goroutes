@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/Nemutagk/goroutes/helper"
+	"github.com/Nemutagk/goenvars"
 )
 
 type HTTPError struct {
@@ -21,7 +21,7 @@ func (e *HTTPError) Error() string {
 }
 
 func AccountService(path, method string, payload interface{}) (any, error) {
-	baseUrl := helper.GetEnv("ACCOUNT_SERVICE_URL", "http://localhost:8080")
+	baseUrl := goenvars.GetEnv("ACCOUNT_SERVICE_URL", "http://localhost:8080")
 
 	lastLetterBaseUrl := baseUrl[len(baseUrl)-1:]
 	if lastLetterBaseUrl == "/" {

@@ -3,11 +3,8 @@ package helper
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"sync"
 
 	"github.com/gofrs/uuid"
-	"github.com/joho/godotenv"
 )
 
 func GenerateUuid() string {
