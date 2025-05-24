@@ -14,13 +14,12 @@ import (
 
 	"github.com/Nemutagk/godb"
 	"github.com/Nemutagk/godb/definitions/db"
+	"github.com/Nemutagk/goenvars"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/helper"
-	"github.com/Nemutagk/goenvars"
 
 	"github.com/gofrs/uuid"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
@@ -57,15 +56,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			wr.Write([]byte("Internal server error"))
 			return
 		}
-		dbClient, ok := dbConnRaw.(*mongo.Client)
-		if !ok {
-			fmt.Println("Error casting database connection to *mongo.Client")
-			wr.WriteHeader(http.StatusInternalServerError)
-			wr.Write([]byte("Internal server error"))
-			return
-		}
-
-		dbConn := dbClient.Database(goenvars.GetEnv("DB_LOGS_DB", "sb_logs"))
+		dbConn, _ := dbConnRaw.ToMongoDb()
 
 		coll := dbConn.Collection("ip_black_list")
 		var result map[string]interface{}
@@ -178,7 +169,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			"created_at": time.Now(),
 			"updated_at": time.Now(),
 		}
-		fmt.Println("request",body_save)
+		fmt.Println("request", body_save)
 
 		_, err = coll.InsertOne(r.Context(), body_save)
 
