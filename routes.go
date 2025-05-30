@@ -19,9 +19,13 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, not
 		}
 	}
 
+	total_route_list := make([]string, 0)
 	for path, route := range globalRouteList {
+		total_route_list = append(total_route_list, path)
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
+
+	fmt.Println("Routes loaded successfully", total_route_list)
 
 	server.HandleFunc("/404", notFoundHandler)
 
