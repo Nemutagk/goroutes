@@ -8,11 +8,11 @@ import (
 	"github.com/Nemutagk/goroutes/definitions"
 )
 
-func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, defaultMiddlewares []definitions.Middleware, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
+func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
 	globalRouteList := map[string]definitions.Route{}
 
 	for _, groupRoute := range list_routes {
-		routes := checkRouteGroup(groupRoute, "")
+		routes := checkRouteGroup(groupRoute, "", nil)
 
 		for tmp_path, tmp_route := range routes {
 			globalRouteList[tmp_path] = tmp_route
@@ -20,39 +20,28 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, def
 	}
 
 	for path, route := range globalRouteList {
-		if route.Group == nil {
-			route = validateMiddleware(route, defaultMiddlewares)
-		} else {
-			for key_subroute, sub_route := range route.Group {
-				sub_route = validateMiddleware(sub_route, defaultMiddlewares)
-				route.Group[key_subroute] = sub_route
-			}
-		}
-
-		// fmt.Println("Route: ", path, "Method: ", route.Method)
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
-	server.HandleFunc("/notfound", func(res http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/notfound" {
-			fmt.Println("The route " + req.URL.Path + " and method " + req.Method + " does not mapped in the routes")
-			notFoundHandler(res, req)
-			return
-		}
-	})
+	server.HandleFunc("/404", notFoundHandler)
 
 	return server
 }
 
-func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string) map[string]definitions.Route {
+func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, parentMiddleware []definitions.Middleware) map[string]definitions.Route {
 	path := preparePath(routeGroup.Prefix, parentPath)
+
+	if routeGroup.Middlewares != nil && len(*routeGroup.Middlewares) > 0 {
+		fmt.Println("route group issues middleware!")
+		parentMiddleware = append(parentMiddleware, *routeGroup.Middlewares...)
+	}
 
 	route_list := make(map[string]definitions.Route)
 
 	for _, route := range routeGroup.Routes {
 		if subroute, ok := route.(definitions.RouteGroup); ok {
 
-			sub_routes := checkRouteGroup(subroute, path)
+			sub_routes := checkRouteGroup(subroute, path, parentMiddleware)
 			for sub_path, sub_route := range sub_routes {
 				route_list = routeExists(route_list, sub_path, sub_route)
 			}
@@ -64,6 +53,15 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string) map[s
 		if !ok {
 			fmt.Println("Invalid route definition:", route)
 			continue
+		}
+
+		if parentMiddleware != nil && len(parentMiddleware) > 0 {
+			if route_define.Middlewares == nil {
+				route_define.Middlewares = &parentMiddleware
+			} else {
+				mws := append(*route_define.Middlewares, parentMiddleware...)
+				route_define.Middlewares = &mws
+			}
 		}
 
 		sub_path := preparePath(route_define.Path, path)
@@ -129,41 +127,19 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 	return false
 }
 
-func validateMiddleware(route definitions.Route, defaultMiddleware []definitions.Middleware) definitions.Route {
-	if len(route.Middlewares) == 0 {
-		if route.ExcludeMiddlewares == nil || len(*route.ExcludeMiddlewares) == 0 {
-			route.Middlewares = defaultMiddleware
-		} else {
-			for _, mw := range defaultMiddleware {
-				if !containsMiddleware(*route.ExcludeMiddlewares, mw) {
-					route.Middlewares = append(route.Middlewares, mw)
-				}
-			}
-		}
-
-		return route
-	}
-
-	for _, mw := range defaultMiddleware {
-		if !containsMiddleware(route.Middlewares, mw) && !containsMiddleware(*route.ExcludeMiddlewares, mw) {
-			route.Middlewares = append(route.Middlewares, mw)
-		}
-	}
-
-	return route
-}
-
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	if route.Group == nil {
-		for _, middleware := range route.Middlewares {
-			route.Action = middleware(route.Action, route, dbListConn)
+		if route.Middlewares != nil && len(*route.Middlewares) > 0 {
+			for _, middleware := range *route.Middlewares {
+				route.Action = middleware(route.Action, route, dbListConn)
+			}
 		}
 
 		return route.Action
 	} else {
 		return func(res http.ResponseWriter, req *http.Request) {
 			if sub_route, exists := route.Group[req.Method]; exists {
-				for _, middleware := range sub_route.Middlewares {
+				for _, middleware := range *sub_route.Middlewares {
 					sub_route.Action = middleware(sub_route.Action, sub_route, dbListConn)
 				}
 

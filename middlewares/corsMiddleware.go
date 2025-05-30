@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
@@ -10,7 +10,8 @@ import (
 
 func CorsMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return http.HandlerFunc(func(wr http.ResponseWriter, r *http.Request) {
-		fmt.Println("CORS Middleware called")
+		log.Println("==================> CORS Middleware called")
+		log.Println("CORS Middleware called")
 		wr.Header().Set("Access-Control-Allow-Origin", "*")
 		wr.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		wr.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

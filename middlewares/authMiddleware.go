@@ -3,11 +3,11 @@ package middlewares
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
-	"github.com/Nemutagk/goroutes/helper"
 	"github.com/Nemutagk/goroutes/service"
 )
 
@@ -15,9 +15,9 @@ type contextKey string
 
 func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("AuthMiddleware called")
+		log.Println("==================> AuthMiddleware called")
 		if route.Auth == nil {
-			fmt.Println("No auth middleware defined for this route, allowing access")
+			log.Println("No auth middleware defined for this route, allowing access")
 
 			next(w, r)
 			return
@@ -25,7 +25,7 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 
 		token := r.Header.Get("Authorization")
 		if token == "" {
-			fmt.Println("No token provided, denying access")
+			log.Println("No token provided, denying access")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -39,8 +39,10 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 		if err != nil {
 			if httpErr, ok := err.(*service.HTTPError); ok {
 				fmt.Println("Error from account service:", httpErr.Status)
-				helper.PrettyPrint(string(httpErr.Body))
-				helper.PrettyPrint(string(httpErr.Error()))
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(httpErr.Code)
+				w.Write([]byte(httpErr.Body))
+				return
 			}
 
 			fmt.Println("Error validating token:", err)

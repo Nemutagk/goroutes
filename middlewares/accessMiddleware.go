@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -24,7 +24,7 @@ import (
 
 func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(wr http.ResponseWriter, r *http.Request) {
-		fmt.Println("AccessMiddleware called")
+		log.Println("==================> AccessMiddleware called")
 		clientRealIp := r.Header.Get("X-Forwarded-For")
 		if clientRealIp == "" {
 			clientRealIp = r.RemoteAddr
@@ -41,22 +41,23 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		}
 
 		if dbListConn == nil {
-			fmt.Println("No database connection list provided")
+			log.Println("No database connection list provided")
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
 
 		}
 
-		conn := godb.InitConnections(dbListConn)
-		dbConnRaw, err_con := conn.GetConnection(goenvars.GetEnv("DB_LOGS_CONNECTION", "mongodb"))
+		db_conn_name := goenvars.GetEnv("DB_LOGS_CONNECTION", "mongodb")
+		conn, err_con := godb.InitConnections(dbListConn).GetConnection(db_conn_name)
+
 		if err_con != nil {
-			fmt.Println("Error getting database connection:", err_con)
+			log.Println("Error getting database connection:", err_con)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
 		}
-		dbConn, _ := dbConnRaw.ToMongoDb()
+		dbConn, _ := conn.ToMongoDb()
 
 		coll := dbConn.Collection("ip_black_list")
 		var result map[string]interface{}
@@ -84,7 +85,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		})
 
 		if err_list != nil {
-			fmt.Println("Error finding access log:", err_list)
+			log.Println("Error finding access log:", err_list)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -99,7 +100,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		max_access_string := goenvars.GetEnv("MAX_ACCESS", "10")
 		max_access, _ := strconv.Atoi(max_access_string)
 
-		fmt.Println("Count of access logs in the last 10 minutes: " + strconv.Itoa(count) + ":" + max_access_string)
+		log.Println("Count of access logs in the last 10 minutes: " + strconv.Itoa(count) + ":" + max_access_string)
 
 		if count > max_access {
 			// IP is blacklisted for 1 hours
@@ -109,7 +110,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 				"expired_at": time.Now().Add(1 * time.Hour),
 			})
 			if err != nil {
-				fmt.Println("Error inserting black list log:", err)
+				log.Println("Error inserting black list log:", err)
 			}
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
@@ -145,7 +146,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			})
 
 			if err != nil {
-				fmt.Println("Error inserting black list log:", err)
+				log.Println("Error inserting black list log:", err)
 			}
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
@@ -169,12 +170,12 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			"created_at": time.Now(),
 			"updated_at": time.Now(),
 		}
-		fmt.Println("request", body_save)
+		log.Println("request", body_save)
 
 		_, err = coll.InsertOne(r.Context(), body_save)
 
 		if err != nil {
-			fmt.Println("Error inserting access log:", err)
+			log.Println("Error inserting access log:", err)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -197,7 +198,7 @@ func mapBody(raw_body io.ReadCloser) (map[string]interface{}, io.ReadCloser) {
 		// Leer el cuerpo de la solicitud
 		bodyBytes, err := io.ReadAll(raw_body)
 		if err != nil {
-			fmt.Println("Error reading request body:", err)
+			log.Println("Error reading request body:", err)
 			return nil, raw_body
 		}
 		raw_body = io.NopCloser(bytes.NewBuffer(bodyBytes))

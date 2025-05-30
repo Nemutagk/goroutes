@@ -21,7 +21,7 @@ func (e *HTTPError) Error() string {
 }
 
 func AccountService(path, method string, payload interface{}) (any, error) {
-	baseUrl := goenvars.GetEnv("ACCOUNT_SERVICE_URL", "http://localhost:8080")
+	baseUrl := goenvars.GetEnv("ACCOUNT_API_URL", "http://localhost:8080")
 
 	lastLetterBaseUrl := baseUrl[len(baseUrl)-1:]
 	if lastLetterBaseUrl == "/" {
@@ -49,9 +49,6 @@ func AccountService(path, method string, payload interface{}) (any, error) {
 			return nil, err
 		}
 	}
-
-	fmt.Println("Request URL:", url)
-	fmt.Println("Request Method:", method)
 
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(requestBody))
 	if err != nil {
