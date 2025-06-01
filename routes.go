@@ -6,6 +6,7 @@ import (
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
+	"github.com/Nemutagk/goroutes/helper"
 )
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
@@ -25,7 +26,8 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, not
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
-	fmt.Println("Routes loaded successfully", total_route_list)
+	fmt.Println("Routes loaded successfully")
+	helper.PrettyPrint(total_route_list)
 
 	server.HandleFunc("/404", notFoundHandler)
 
@@ -77,6 +79,12 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 }
 
 func preparePath(prefix string, parentPath string) string {
+	if parentPath == "/" {
+		if prefix != "" && prefix[0:1] == "/" {
+			prefix = prefix[1:]
+		}
+	}
+
 	path := parentPath + prefix
 
 	if len(path) > 0 && path[len(path)-1] == '/' {
