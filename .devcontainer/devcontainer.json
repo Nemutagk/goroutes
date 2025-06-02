@@ -5,7 +5,7 @@
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	"image": "mcr.microsoft.com/devcontainers/go:1-1.23-bookworm",
 	"mounts": [
-		"source=/home/nemutagk/servidor_http/Syberian,target=/opt/modules,type=bind,consistency=cached"
+		"source=/server/html/syberian,target=/opt/modules,type=bind,consistency=cached"
 	]
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},

@@ -22,7 +22,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, not
 
 	total_route_list := make([]string, 0)
 	for path, route := range globalRouteList {
-		total_route_list = append(total_route_list, path)
+		total_route_list = append(total_route_list, route.Method+": "+path)
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
