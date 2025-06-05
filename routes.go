@@ -151,8 +151,10 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 	} else {
 		return func(res http.ResponseWriter, req *http.Request) {
 			if sub_route, exists := route.Group[req.Method]; exists {
-				for _, middleware := range *sub_route.Middlewares {
-					sub_route.Action = middleware(sub_route.Action, sub_route, dbListConn)
+				if sub_route.Middlewares != nil && len(*sub_route.Middlewares) > 0 {
+					for _, middleware := range *sub_route.Middlewares {
+						sub_route.Action = middleware(sub_route.Action, sub_route, dbListConn)
+					}
 				}
 
 				sub_route.Action(res, req)
