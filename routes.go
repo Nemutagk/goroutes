@@ -2,11 +2,11 @@ package goroutes
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
-	"github.com/Nemutagk/goroutes/helper"
 )
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
@@ -26,8 +26,8 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, not
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
-	fmt.Println("Routes loaded successfully")
-	helper.PrettyPrint(total_route_list)
+	// fmt.Println("Routes loaded successfully")
+	// helper.PrettyPrint(total_route_list)
 
 	server.HandleFunc("/404", notFoundHandler)
 
@@ -61,7 +61,9 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 			continue
 		}
 
-		if parentMiddleware != nil && len(parentMiddleware) > 0 {
+		log.Println("parent middleware:", parentMiddleware)
+
+		if len(parentMiddleware) > 0 {
 			if route_define.Middlewares == nil {
 				route_define.Middlewares = &parentMiddleware
 			} else {
