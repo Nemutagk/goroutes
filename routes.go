@@ -61,8 +61,6 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 			continue
 		}
 
-		log.Println("parent middleware:", parentMiddleware)
-
 		if len(parentMiddleware) > 0 {
 			if route_define.Middlewares == nil {
 				route_define.Middlewares = &parentMiddleware
