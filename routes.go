@@ -2,7 +2,6 @@ package goroutes
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
