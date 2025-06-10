@@ -6,9 +6,11 @@ import (
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
+	"github.com/Nemutagk/goroutes/definitions/notfound"
+	"github.com/Nemutagk/goroutes/helper"
 )
 
-func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, notFoundHandler http.HandlerFunc, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
+func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
 	globalRouteList := map[string]definitions.Route{}
 
 	for _, groupRoute := range list_routes {
@@ -19,62 +21,64 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, not
 		}
 	}
 
-	total_route_list := make([]string, 0)
+	totalRouteList := make([]string, 0)
 	for path, route := range globalRouteList {
-		total_route_list = append(total_route_list, route.Method+": "+path)
+		totalRouteList = append(totalRouteList, route.Method+": "+path)
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
-	// fmt.Println("Routes loaded successfully")
-	// helper.PrettyPrint(total_route_list)
-
-	server.HandleFunc("/404", notFoundHandler)
+	fmt.Println("Routes loaded successfully")
+	helper.PrettyPrint(totalRouteList)
 
 	return server
+}
+
+func AddNotFoundHandler(server *http.ServeMux, notFoundHandler http.HandlerFunc) http.HandlerFunc {
+	return notfound.CustomMuxHandler(server, notFoundHandler)
 }
 
 func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, parentMiddleware []definitions.Middleware) map[string]definitions.Route {
 	path := preparePath(routeGroup.Prefix, parentPath)
 
 	if routeGroup.Middlewares != nil && len(*routeGroup.Middlewares) > 0 {
-		fmt.Println("route group issues middleware!")
+		// fmt.Println("route group issues middleware!")
 		parentMiddleware = append(parentMiddleware, *routeGroup.Middlewares...)
 	}
 
-	route_list := make(map[string]definitions.Route)
+	routeList := make(map[string]definitions.Route)
 
 	for _, route := range routeGroup.Routes {
 		if subroute, ok := route.(definitions.RouteGroup); ok {
 
-			sub_routes := checkRouteGroup(subroute, path, parentMiddleware)
-			for sub_path, sub_route := range sub_routes {
-				route_list = routeExists(route_list, sub_path, sub_route)
+			subRoutes := checkRouteGroup(subroute, path, parentMiddleware)
+			for sub_path, sub_route := range subRoutes {
+				routeList = routeExists(routeList, sub_path, sub_route)
 			}
 
 			continue
 		}
 
-		route_define, ok := route.(definitions.Route)
+		routeDefine, ok := route.(definitions.Route)
 		if !ok {
 			fmt.Println("Invalid route definition:", route)
 			continue
 		}
 
 		if len(parentMiddleware) > 0 {
-			if route_define.Middlewares == nil {
-				route_define.Middlewares = &parentMiddleware
+			if routeDefine.Middlewares == nil {
+				routeDefine.Middlewares = &parentMiddleware
 			} else {
-				mws := append(*route_define.Middlewares, parentMiddleware...)
-				route_define.Middlewares = &mws
+				mws := append(*routeDefine.Middlewares, parentMiddleware...)
+				routeDefine.Middlewares = &mws
 			}
 		}
 
-		sub_path := preparePath(route_define.Path, path)
+		subPath := preparePath(routeDefine.Path, path)
 
-		route_list = routeExists(route_list, sub_path, route_define)
+		routeList = routeExists(routeList, subPath, routeDefine)
 	}
 
-	return route_list
+	return routeList
 }
 
 func preparePath(prefix string, parentPath string) string {
@@ -101,28 +105,28 @@ func routeExists(routes map[string]definitions.Route, path string, route definit
 	if _, exists := routes[path]; !exists {
 		routes[path] = route
 	} else {
-		tmp_route := routes[path]
+		tmpRoute := routes[path]
 
-		if tmp_route.Group == nil {
-			tmp_route.Group = make(map[string]definitions.Route)
-			tmp_route.Group[tmp_route.Method] = definitions.Route{
-				Path:               tmp_route.Path,
-				Method:             tmp_route.Method,
-				Action:             tmp_route.Action,
-				Middlewares:        tmp_route.Middlewares,
-				ExcludeMiddlewares: tmp_route.ExcludeMiddlewares,
-				Auth:               tmp_route.Auth,
+		if tmpRoute.Group == nil {
+			tmpRoute.Group = make(map[string]definitions.Route)
+			tmpRoute.Group[tmpRoute.Method] = definitions.Route{
+				Path:               tmpRoute.Path,
+				Method:             tmpRoute.Method,
+				Action:             tmpRoute.Action,
+				Middlewares:        tmpRoute.Middlewares,
+				ExcludeMiddlewares: tmpRoute.ExcludeMiddlewares,
+				Auth:               tmpRoute.Auth,
 			}
-			tmp_route.Group[route.Method] = route
+			tmpRoute.Group[route.Method] = route
 		} else {
-			if _, exists := tmp_route.Group[route.Method]; !exists {
-				tmp_route.Group[route.Method] = route
+			if _, exists := tmpRoute.Group[route.Method]; !exists {
+				tmpRoute.Group[route.Method] = route
 			} else {
 				fmt.Println("Route already exists:", route.Method, route.Path)
 			}
 		}
 
-		routes[path] = tmp_route
+		routes[path] = tmpRoute
 	}
 
 	return routes
