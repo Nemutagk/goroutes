@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -38,14 +37,14 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 
 		if err != nil {
 			if httpErr, ok := err.(*service.HTTPError); ok {
-				fmt.Println("Error from account service:", httpErr.Status)
+				log.Println("Error from account service:", httpErr.Status)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(httpErr.Code)
 				w.Write([]byte(httpErr.Body))
 				return
 			}
 
-			fmt.Println("Error validating token:", err)
+			log.Println("Error validating token:", err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

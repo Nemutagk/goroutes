@@ -22,6 +22,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+const ACCESS_CODE_ERROR = "0500"
+const ACCESS_CODE_FORBIDDEN = "0403"
+const ACCESS_CODE_DENIED = "0401"
+const ACCESS_CODE_BLACKLISTED = "0404"
+const ACCESS_CODE_NOT_FOUND = "0405"
+const ACCESS_CODE_TOKEN_EXPIRED = "0406"
+
 func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(wr http.ResponseWriter, r *http.Request) {
 		log.Println("==================> AccessMiddleware called")
@@ -53,6 +60,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if err_con != nil {
 			log.Println("Error getting database connection:", err_con)
+			wr.Header().Set("X-Request-Error", ACCESS_CODE_ERROR)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -86,6 +94,8 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if err_list != nil {
 			log.Println("Error finding access log:", err_list)
+			// Error to find access log, return 500
+			wr.Header().Set("X-Request-Error", ACCESS_CODE_ERROR)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -112,6 +122,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			if err != nil {
 				log.Println("Error inserting black list log:", err)
 			}
+			wr.Header().Set("X-Request-Error", ACCESS_CODE_FORBIDDEN)
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
 			return
@@ -125,6 +136,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if access_denied_err != nil {
 			// IP is blacklisted
+			wr.Header().Set("X-Request-Error", ACCESS_CODE_BLACKLISTED)
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
 			return
@@ -148,6 +160,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			if err != nil {
 				log.Println("Error inserting black list log:", err)
 			}
+			wr.Header().Set("X-Request-Error", ACCESS_CODE_FORBIDDEN)
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
 			return

@@ -14,10 +14,11 @@ func CorsMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 		log.Println("CORS Middleware called")
 		wr.Header().Set("Access-Control-Allow-Origin", "*")
 		wr.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		wr.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		wr.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Request-Timestamp, x-request-timestamp, Accept, Origin, User-Agent, Cache-Control")
 
 		if r.Method == http.MethodOptions {
 			wr.WriteHeader(http.StatusOK)
+			wr.Write([]byte("OK"))
 			return
 		}
 

@@ -2,6 +2,7 @@ package goroutes
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
@@ -11,6 +12,7 @@ import (
 )
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	globalRouteList := map[string]definitions.Route{}
 
 	for _, groupRoute := range list_routes {
@@ -168,7 +170,7 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 				fmt.Println("CORS preflight request")
 				res.Header().Set("Access-Control-Allow-Origin", "*")
 				res.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-				res.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				res.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Request-Timestamp, x-request-timestamp, Accept, Origin, User-Agent, Cache-Control")
 
 				fmt.Println("CORS preflight request")
 				res.WriteHeader(http.StatusOK)
