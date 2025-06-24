@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
@@ -145,7 +146,18 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 }
 
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
+
 	if route.Group == nil {
+		route_list_middleware := *route.Middlewares
+		if route_list_middleware == nil {
+			route_list_middleware = make([]definitions.Middleware, 0)
+			route_list_middleware = append(route_list_middleware, infoMiddleware)
+			route.Middlewares = &route_list_middleware
+		} else {
+			route_list_middleware = append(route_list_middleware, infoMiddleware)
+			route.Middlewares = &route_list_middleware
+		}
+
 		if route.Middlewares != nil && len(*route.Middlewares) > 0 {
 			for _, middleware := range *route.Middlewares {
 				route.Action = middleware(route.Action, route, dbListConn)
@@ -156,6 +168,16 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 	} else {
 		return func(res http.ResponseWriter, req *http.Request) {
 			if sub_route, exists := route.Group[req.Method]; exists {
+				route_list_middleware := *sub_route.Middlewares
+				if route_list_middleware == nil {
+					route_list_middleware = make([]definitions.Middleware, 0)
+					route_list_middleware = append(route_list_middleware, infoMiddleware)
+					sub_route.Middlewares = &route_list_middleware
+				} else {
+					route_list_middleware = append(route_list_middleware, infoMiddleware)
+					sub_route.Middlewares = &route_list_middleware
+				}
+
 				if sub_route.Middlewares != nil && len(*sub_route.Middlewares) > 0 {
 					for _, middleware := range *sub_route.Middlewares {
 						sub_route.Action = middleware(sub_route.Action, sub_route, dbListConn)
@@ -184,5 +206,32 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 			res.Header().Set("Content-Type", "application/json")
 			res.Write([]byte(""))
 		}
+	}
+}
+
+func infoMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
+	return func(wr http.ResponseWriter, r *http.Request) {
+		log.Println("==================> InfoMiddleware called")
+		clientRealIp := r.Header.Get("X-Forwarded-For")
+		if clientRealIp == "" {
+			clientRealIp = r.RemoteAddr
+		}
+
+		var clientIp = clientRealIp
+
+		if strings.Contains(clientIp, ",") {
+			clientIp = strings.Split(clientIp, ",")[0]
+		}
+
+		if strings.Contains(clientIp, ":") {
+			clientIp = strings.Split(clientIp, ":")[0]
+		}
+
+		log.Printf("Client IP: %s\n", clientIp)
+		log.Println("Route path:" + r.URL.String())
+		log.Println("Route method:" + route.Method)
+		log.Println("==================> InfoMiddleware called ending")
+
+		next(wr, r)
 	}
 }
