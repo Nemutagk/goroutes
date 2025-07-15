@@ -240,7 +240,7 @@ func mapBody(raw_body io.ReadCloser) (map[string]interface{}, io.ReadCloser) {
 			for _, node := range extra_nodes {
 				if value, exists := body[node]; exists {
 					if _, ok := value.(string); ok {
-						body[node] = "***..."
+						body[node] = "*******"
 					}
 				}
 			}
