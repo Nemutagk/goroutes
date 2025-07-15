@@ -148,12 +148,12 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 
 	if route.Group == nil {
-		route_list_middleware := *route.Middlewares
-		if route_list_middleware == nil {
-			route_list_middleware = make([]definitions.Middleware, 0)
+		if route.Middlewares == nil {
+			route_list_middleware := make([]definitions.Middleware, 0)
 			route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
 			route.Middlewares = &route_list_middleware
 		} else {
+			route_list_middleware := *route.Middlewares
 			route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
 			route.Middlewares = &route_list_middleware
 		}
