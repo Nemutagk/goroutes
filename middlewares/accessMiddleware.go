@@ -55,7 +55,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		}
 
-		db_conn_name := goenvars.GetEnv("DB_LOGS_CONNECTION", "mongodb")
+		db_conn_name := goenvars.GetEnv("DB_LOGS_CONNECTION", "logs")
 		conn, err_con := godb.InitConnections(dbListConn).GetConnection(db_conn_name)
 
 		if err_con != nil {

@@ -147,7 +147,7 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 
-	if route.Group == nil && route.Middlewares != nil {
+	if route.Group == nil {
 		route_list_middleware := *route.Middlewares
 		if route_list_middleware == nil {
 			route_list_middleware = make([]definitions.Middleware, 0)
