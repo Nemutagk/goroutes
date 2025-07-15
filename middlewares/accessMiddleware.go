@@ -239,8 +239,8 @@ func mapBody(raw_body io.ReadCloser) (map[string]interface{}, io.ReadCloser) {
 			extra_nodes := strings.Split(extra_nodes_censored, ",")
 			for _, node := range extra_nodes {
 				if value, exists := body[node]; exists {
-					if strValue, ok := value.(string); ok {
-						body[node] = strings.Split(strValue, "@")[0] + "@******+"
+					if _, ok := value.(string); ok {
+						body[node] = "***..."
 					}
 				}
 			}
