@@ -74,8 +74,19 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 			if routeDefine.Middlewares == nil {
 				routeDefine.Middlewares = &parentMiddleware
 			} else {
-				mws := append(*routeDefine.Middlewares, parentMiddleware...)
-				routeDefine.Middlewares = &mws
+				// mws := append(*routeDefine.Middlewares, parentMiddleware...)
+				if containsMiddleware(*routeDefine.Middlewares, middlewares.InfoMiddleware) {
+					mvs := append(*routeDefine.Middlewares, middlewares.InfoMiddleware)
+					routeDefine.Middlewares = &mvs
+				}
+				if containsMiddleware(*routeDefine.Middlewares, middlewares.MethodMiddleware) {
+					mvs := append(*routeDefine.Middlewares, middlewares.MethodMiddleware)
+					routeDefine.Middlewares = &mvs
+				}
+				if containsMiddleware(*routeDefine.Middlewares, middlewares.CorsMiddleware) {
+					mvs := append(*routeDefine.Middlewares, middlewares.CorsMiddleware)
+					routeDefine.Middlewares = &mvs
+				}
 			}
 		}
 
@@ -180,14 +191,15 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 	} else {
 		return func(res http.ResponseWriter, req *http.Request) {
 			if sub_route, exists := route.Group[req.Method]; exists {
-				route_list_middleware := *sub_route.Middlewares
-				if route_list_middleware == nil {
-					route_list_middleware = make([]definitions.Middleware, 0)
+
+				if sub_route.Middlewares == nil {
+					route_list_middleware := make([]definitions.Middleware, 0)
 					route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
 					route_list_middleware = append(route_list_middleware, middlewares.MethodMiddleware)
 					route_list_middleware = append(route_list_middleware, middlewares.CorsMiddleware)
 					sub_route.Middlewares = &route_list_middleware
 				} else {
+					route_list_middleware := *sub_route.Middlewares
 					if containsMiddleware(route_list_middleware, middlewares.InfoMiddleware) {
 						route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
 					}

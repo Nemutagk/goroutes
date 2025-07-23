@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -18,7 +17,6 @@ import (
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/helper"
 
-	"github.com/gofrs/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -193,12 +191,6 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			wr.Write([]byte("Internal server error"))
 			return
 		}
-
-		// Generate unique request id with uuid v7
-		type contextKey string
-		requestIDKey := contextKey("request_id")
-		ctx := context.WithValue(r.Context(), requestIDKey, uuid.Must(uuid.NewV7()).String())
-		r = r.WithContext(ctx)
 
 		// IP is not blacklisted, proceed with the request
 		next(wr, r)
