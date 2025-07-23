@@ -29,7 +29,7 @@ func CustomMuxHandler(mux *http.ServeMux, notFoundHandler http.HandlerFunc) http
 		rec := &ResponseRecorder{ResponseWriter: w, status: 200}
 		mux.ServeHTTP(rec, r)
 		log.Println("Request:", r.Method, r.URL.Path, "Status Code:", rec.status)
-		if rec.status == 404 && !rec.wroteBody {
+		if rec.status == 404 {
 			notFoundHandler(w, r)
 		}
 	}

@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/Nemutagk/goroutes/definitions"
@@ -14,7 +13,6 @@ func Response(res http.ResponseWriter, body any, statusCode int, contentType str
 		statusCode = http.StatusOK
 	}
 
-	fmt.Println("body type:", fmt.Sprintf("%T", body))
 	if contentType == "" {
 		switch body.(type) {
 		case string:

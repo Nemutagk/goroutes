@@ -4,7 +4,7 @@ go 1.23.8
 
 require (
 	github.com/Nemutagk/godb v1.3.0
-	github.com/Nemutagk/goenvars v1.3.5
+	github.com/Nemutagk/goenvars v1.4.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	go.mongodb.org/mongo-driver v1.17.3
 )
