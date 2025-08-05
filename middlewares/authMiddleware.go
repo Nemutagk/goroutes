@@ -7,6 +7,7 @@ import (
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goroutes/definitions"
+	"github.com/Nemutagk/goroutes/helper"
 	"github.com/Nemutagk/goroutes/service"
 )
 
@@ -38,6 +39,7 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 		if err != nil {
 			if httpErr, ok := err.(*service.HTTPError); ok {
 				log.Println("Error from account service:", httpErr.Status)
+				helper.PrettyPrint(httpErr)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(httpErr.Code)
 				w.Write([]byte(httpErr.Body))

@@ -1,6 +1,8 @@
 module github.com/Nemutagk/goroutes
 
-go 1.23.8
+go 1.24.3
+
+toolchain go1.24.5
 
 require (
 	github.com/Nemutagk/godb v1.3.0
@@ -10,6 +12,7 @@ require (
 )
 
 require (
+	github.com/Nemutagk/goerrors v1.2.2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.14 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.67 // indirect

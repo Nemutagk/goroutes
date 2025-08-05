@@ -1,12 +1,14 @@
 package goroutes
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goenvars"
+	"github.com/Nemutagk/goerrors"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/definitions/notfound"
 	"github.com/Nemutagk/goroutes/helper"
@@ -228,17 +230,75 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 			// 	res.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			// 	res.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Request-Timestamp, x-request-timestamp, Accept, Origin, User-Agent, Cache-Control")
 
-			// 	log.Println("CORS preflight request")
+			// 	fmt.Println("CORS preflight request")
 			// 	res.WriteHeader(http.StatusOK)
 			// 	return
 			// }
 
-			// log.Println("the methods does not exists in the group!")
-			// log.Println("The route " + route.Path + " and method " + req.Method + " does not mapped in the routes")
+			// fmt.Println("the methods does not exists in the group!")
+			// fmt.Println("The route " + route.Path + " and method " + req.Method + " does not mapped in the routes")
 
 			// res.WriteHeader(http.StatusNotFound)
 			// res.Header().Set("Content-Type", "application/json")
 			// res.Write([]byte(""))
 		}
 	}
+}
+
+func GoErrorResponse(w http.ResponseWriter, err goerrors.GError) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(err.GetStatusCode())
+	w.Write([]byte(err.ToJson()))
+}
+
+func JsonResponse(w http.ResponseWriter, data any, statusCode int) {
+	if data == nil {
+		data = map[string]any{"message": "No content"}
+	}
+
+	response, err := json.Marshal(data)
+	if err != nil {
+		log.Println("Error marshalling JSON response:", err)
+		GoErrorResponse(w, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, nil))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	w.Write(response)
+}
+
+func StringResponse(w http.ResponseWriter, data string, statusCode int, contentType *string) {
+	if contentType == nil {
+		defaultType := "text/plain"
+		contentType = &defaultType
+	}
+
+	w.Header().Set("Content-Type", *contentType)
+	w.WriteHeader(statusCode)
+	w.Write([]byte(data))
+}
+
+func HttpResponse(w http.ResponseWriter, data string) {
+	contentType := "text/html"
+	StringResponse(w, data, http.StatusOK, &contentType)
+}
+
+func RawResponse(w http.ResponseWriter, data []byte, statusCode int, headers *map[string]string) {
+	if headers == nil {
+		headers = &map[string]string{
+			"Content-Type": "application/octet-stream",
+		}
+	} else {
+		if _, exists := (*headers)["Content-Type"]; !exists {
+			(*headers)["Content-Type"] = "application/octet-stream"
+		}
+	}
+
+	for key, value := range *headers {
+		w.Header().Set(key, value)
+	}
+
+	w.WriteHeader(statusCode)
+	w.Write(data)
 }
