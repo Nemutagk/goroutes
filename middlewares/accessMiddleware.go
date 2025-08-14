@@ -201,7 +201,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			return
 		}
 
-		golog.Log(context.Background(), "==================> AuthMiddleware END")
+		golog.Log(r.Context(), "==================> AccessMiddleware END")
 		// IP is not blacklisted, proceed with the request
 		next(wr, r)
 	}

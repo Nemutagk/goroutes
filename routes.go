@@ -30,7 +30,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbC
 	totalRouteList := make([]string, 0)
 	for path, route := range globalRouteList {
 		totalRouteList = append(totalRouteList, route.Method+": "+path)
-		server.HandleFunc(path, applyMiddleware(route))
+		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
 	if goenvars.GetEnvBool("GOROUTES_DEBUG", false) {
@@ -161,63 +161,74 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 	return false
 }
 
-func applyMiddleware(route definitions.Route) http.HandlerFunc {
+func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
+	// Queremos que InfoMiddleware sea el primero que se EJECUTE (outermost)
 	defaultMiddlewares := []definitions.Middleware{
+		middlewares.InfoMiddleware,
 		middlewares.CorsMiddleware,
 		middlewares.MethodMiddleware,
 		middlewares.AccessMiddleware,
-		middlewares.InfoMiddleware,
+	}
+
+	buildChain := func(rt definitions.Route) http.HandlerFunc {
+		var finalList []definitions.Middleware
+		if rt.Middlewares == nil {
+			finalList = append(finalList, defaultMiddlewares...)
+		} else {
+			// Copiamos manteniendo orden existente
+			finalList = append(finalList, *rt.Middlewares...)
+			// Garantizamos que InfoMiddleware esté presente y al inicio
+			if !containsMiddleware(finalList, middlewares.InfoMiddleware) {
+				finalList = append([]definitions.Middleware{middlewares.InfoMiddleware}, finalList...)
+			} else {
+				// Si estaba pero no en posición 0 lo movemos
+				if fmt.Sprintf("%p", finalList[0]) != fmt.Sprintf("%p", middlewares.InfoMiddleware) {
+					tmp := []definitions.Middleware{middlewares.InfoMiddleware}
+					for _, mw := range finalList {
+						if fmt.Sprintf("%p", mw) != fmt.Sprintf("%p", middlewares.InfoMiddleware) {
+							tmp = append(tmp, mw)
+						}
+					}
+					finalList = tmp
+				}
+			}
+			// Añadimos los que falten (excepto Info ya tratado)
+			for _, dmw := range defaultMiddlewares {
+				if !containsMiddleware(finalList, dmw) {
+					finalList = append(finalList, dmw)
+				}
+			}
+		}
+
+		// Construcción de cadena: índice 0 se ejecuta primero (envolvemos en orden inverso)
+		handler := rt.Action
+		for i := len(finalList) - 1; i >= 0; i-- {
+			handler = finalList[i](handler, rt, dbListConn)
+		}
+		return handler
 	}
 
 	if route.Group == nil {
-		if route.Middlewares == nil {
-			route.Middlewares = &defaultMiddlewares
-		} else {
-			route_list_middleware := route.Middlewares
+		return buildChain(route)
+	}
 
-			for _, mv := range defaultMiddlewares {
-				if !containsMiddleware(*route_list_middleware, mv) {
-					*route_list_middleware = append(*route_list_middleware, mv)
-				}
-			}
-
-			route.Middlewares = route_list_middleware
+	return func(res http.ResponseWriter, req *http.Request) {
+		if subRoute, exists := route.Group[req.Method]; exists {
+			handler := buildChain(subRoute)
+			handler(res, req)
+			return
 		}
 
-		return route.Action
-	} else {
-		return func(res http.ResponseWriter, req *http.Request) {
-			if sub_route, exists := route.Group[req.Method]; exists {
-
-				if sub_route.Middlewares == nil {
-					sub_route.Middlewares = &defaultMiddlewares
-				} else {
-					route_list_middleware := route.Middlewares
-
-					for _, mv := range defaultMiddlewares {
-						if !containsMiddleware(*route_list_middleware, mv) {
-							*route_list_middleware = append(*route_list_middleware, mv)
-						}
-					}
-
-					sub_route.Middlewares = route_list_middleware
-				}
-
-				sub_route.Action(res, req)
-				return
-			}
-
-			golog.Error(req.Context(), "Route not found:", req.Method, req.URL.Path)
-			res.Header().Set("Content-Type", "application/json")
-			res.WriteHeader(http.StatusNotFound)
-			jsonResponse, err := json.Marshal(map[string]string{"error": "Method not supported"})
-			if err != nil {
-				golog.Error(req.Context(), "Error marshalling JSON response:", err)
-				GoErrorResponse(res, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, goerrors.ConvertError(err)))
-				return
-			}
-			res.Write(jsonResponse)
+		golog.Error(req.Context(), "Route not found:", req.Method, req.URL.Path)
+		res.Header().Set("Content-Type", "application/json")
+		res.WriteHeader(http.StatusNotFound)
+		jsonResponse, err := json.Marshal(map[string]string{"error": "Method not supported"})
+		if err != nil {
+			golog.Error(req.Context(), "Error marshalling JSON response:", err)
+			GoErrorResponse(res, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, goerrors.ConvertError(err)))
+			return
 		}
+		res.Write(jsonResponse)
 	}
 }
 

@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
@@ -10,16 +9,14 @@ import (
 )
 
 func MethodMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
-	// Check if the request method is allowed
 	return func(wr http.ResponseWriter, r *http.Request) {
-		golog.Log(context.Background(), "==================> MethodMiddleware called")
+		golog.Log(r.Context(), "==================> MethodMiddleware called")
 		if r.Method != route.Method {
-			golog.Log(context.Background(), "==================> MethodMiddleware called END")
+			golog.Log(r.Context(), "==================> MethodMiddleware END (method not allowed)")
 			http.Error(wr, "", http.StatusNotFound)
 			return
 		}
-
-		golog.Log(context.Background(), "==================> MethodMiddleware called END")
+		golog.Log(r.Context(), "==================> MethodMiddleware END")
 		next(wr, r)
 	}
 }
