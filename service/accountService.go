@@ -2,12 +2,14 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/Nemutagk/goenvars"
+	"github.com/Nemutagk/golog"
 )
 
 type HTTPError struct {
@@ -85,10 +87,9 @@ func AccountService(path, method string, payload interface{}) (any, error) {
 
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		fmt.Println("Error decoding response:", err)
+		golog.Error(context.Background(), "Error decoding response:", err)
 		return nil, err
 	}
 
 	return result, nil
 }
-

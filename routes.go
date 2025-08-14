@@ -1,14 +1,15 @@
 package goroutes
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goenvars"
 	"github.com/Nemutagk/goerrors"
+	"github.com/Nemutagk/golog"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/definitions/notfound"
 	"github.com/Nemutagk/goroutes/helper"
@@ -16,7 +17,6 @@ import (
 )
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	globalRouteList := map[string]definitions.Route{}
 
 	for _, groupRoute := range list_routes {
@@ -34,7 +34,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbC
 	}
 
 	if goenvars.GetEnvBool("GOROUTES_DEBUG", false) {
-		log.Println("Routes loaded successfully")
+		golog.Log(context.Background(), "Routes loaded successfully")
 		helper.PrettyPrint(totalRouteList)
 	}
 
@@ -68,7 +68,7 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 
 		routeDefine, ok := route.(definitions.Route)
 		if !ok {
-			log.Println("Invalid route definition:", route)
+			golog.Error(context.Background(), "Invalid route definition:", route)
 			continue
 		}
 
@@ -141,7 +141,7 @@ func routeExists(routes map[string]definitions.Route, path string, route definit
 			if _, exists := tmpRoute.Group[route.Method]; !exists {
 				tmpRoute.Group[route.Method] = route
 			} else {
-				log.Println("Route already exists:", route.Method, route.Path)
+				golog.Error(context.Background(), "Route already exists:", route.Method, route.Path)
 			}
 		}
 
@@ -223,24 +223,6 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 				sub_route.Action(res, req)
 				return
 			}
-
-			// if req.Method == http.MethodOptions {
-			// 	log.Println("CORS preflight request")
-			// 	res.Header().Set("Access-Control-Allow-Origin", "*")
-			// 	res.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			// 	res.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Request-Timestamp, x-request-timestamp, Accept, Origin, User-Agent, Cache-Control")
-
-			// 	fmt.Println("CORS preflight request")
-			// 	res.WriteHeader(http.StatusOK)
-			// 	return
-			// }
-
-			// fmt.Println("the methods does not exists in the group!")
-			// fmt.Println("The route " + route.Path + " and method " + req.Method + " does not mapped in the routes")
-
-			// res.WriteHeader(http.StatusNotFound)
-			// res.Header().Set("Content-Type", "application/json")
-			// res.Write([]byte(""))
 		}
 	}
 }
@@ -251,16 +233,27 @@ func GoErrorResponse(w http.ResponseWriter, err goerrors.GError) {
 	w.Write([]byte(err.ToJson()))
 }
 
+// ToJson is an interface for types that can marshal themselves to JSON.
+type ToJson interface {
+	ToJson() []byte
+}
+
 func JsonResponse(w http.ResponseWriter, data any, statusCode int) {
 	if data == nil {
 		data = map[string]any{"message": "No content"}
 	}
 
-	response, err := json.Marshal(data)
-	if err != nil {
-		log.Println("Error marshalling JSON response:", err)
-		GoErrorResponse(w, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, nil))
-		return
+	var response []byte
+	if v, ok := data.(ToJson); ok {
+		response = v.ToJson()
+	} else {
+		var err error
+		response, err = json.Marshal(data)
+		if err != nil {
+			golog.Error(context.Background(), "Error marshalling JSON response:", err)
+			GoErrorResponse(w, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, goerrors.ConvertError(err)))
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

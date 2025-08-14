@@ -2,18 +2,18 @@ package middlewares
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/Nemutagk/godb/definitions/db"
+	"github.com/Nemutagk/golog"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/gofrs/uuid"
 )
 
 func InfoMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(wr http.ResponseWriter, r *http.Request) {
-		log.Println("==================> InfoMiddleware called")
+		golog.Log(context.Background(), "==================> InfoMiddleware called")
 
 		clientRealIp := r.Header.Get("X-Forwarded-For")
 		if clientRealIp == "" {
@@ -30,10 +30,10 @@ func InfoMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 			clientIp = strings.Split(clientIp, ":")[0]
 		}
 
-		log.Printf("Client IP: %s\n", clientIp)
-		log.Println("Route path:" + r.URL.String())
-		log.Println("Route method:" + route.Method)
-		log.Println("==================> InfoMiddleware called ending")
+		golog.Log(context.Background(), "Client IP: %s\n", clientIp)
+		golog.Log(context.Background(), "Route path:"+r.URL.String())
+		golog.Log(context.Background(), "Route method:"+route.Method)
+		golog.Log(context.Background(), "==================> InfoMiddleware called ending")
 
 		// Generate unique request id with uuid v7
 
@@ -43,7 +43,7 @@ func InfoMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 			requestId = requestIdHeader
 		}
 
-		log.Println("Generated request ID:", requestId)
+		golog.Log(context.Background(), "Generated request ID:", requestId)
 		ctx := context.WithValue(r.Context(), "request_id", requestId)
 		r = r.WithContext(ctx)
 

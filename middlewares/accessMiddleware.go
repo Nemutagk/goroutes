@@ -2,9 +2,9 @@ package middlewares
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -14,6 +14,7 @@ import (
 	"github.com/Nemutagk/godb"
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goenvars"
+	"github.com/Nemutagk/golog"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/helper"
 
@@ -29,7 +30,7 @@ const ACCESS_CODE_TOKEN_EXPIRED = "0406"
 
 func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(wr http.ResponseWriter, r *http.Request) {
-		log.Println("==================> AccessMiddleware called")
+		golog.Log(r.Context(), "==================> AccessMiddleware called")
 		clientRealIp := r.Header.Get("X-Forwarded-For")
 		if clientRealIp == "" {
 			clientRealIp = r.RemoteAddr
@@ -46,7 +47,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		}
 
 		if dbListConn == nil {
-			log.Println("No database connection list provided")
+			golog.Error(r.Context(), "No database connection list provided")
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -57,7 +58,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		conn, err_con := godb.InitConnections(dbListConn).GetConnection(db_conn_name)
 
 		if err_con != nil {
-			log.Println("Error getting database connection:", err_con)
+			golog.Error(r.Context(), "Error getting database connection:", err_con)
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_ERROR)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
@@ -91,7 +92,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		})
 
 		if err_list != nil {
-			log.Println("Error finding access log:", err_list)
+			golog.Error(r.Context(), "Error finding access log:", err_list)
 			// Error to find access log, return 500
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_ERROR)
 			wr.WriteHeader(http.StatusInternalServerError)
@@ -108,7 +109,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		max_access_string := goenvars.GetEnv("MAX_ACCESS", "10")
 		max_access, _ := strconv.Atoi(max_access_string)
 
-		log.Println("Count of access logs in the last 10 minutes: " + strconv.Itoa(count) + ":" + max_access_string)
+		golog.Log(r.Context(), "Count of access logs in the last 10 minutes: "+strconv.Itoa(count)+":"+max_access_string)
 
 		if count > max_access {
 			// IP is blacklisted for 1 hours
@@ -118,7 +119,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 				"expired_at": time.Now().Add(1 * time.Hour),
 			})
 			if err != nil {
-				log.Println("Error inserting black list log:", err)
+				golog.Error(r.Context(), "Error inserting black list log:", err)
 			}
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_FORBIDDEN)
 			wr.WriteHeader(http.StatusForbidden)
@@ -156,7 +157,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			})
 
 			if err != nil {
-				log.Println("Error inserting black list log:", err)
+				golog.Error(r.Context(), "Error inserting black list log:", err)
 			}
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_FORBIDDEN)
 			wr.WriteHeader(http.StatusForbidden)
@@ -181,12 +182,12 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			"created_at": time.Now(),
 			"updated_at": time.Now(),
 		}
-		log.Println("request", body_save)
+		golog.Log(r.Context(), "request", body_save)
 
 		_, err = coll.InsertOne(r.Context(), body_save)
 
 		if err != nil {
-			log.Println("Error inserting access log:", err)
+			golog.Error(r.Context(), "Error inserting access log:", err)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -203,7 +204,7 @@ func mapBody(raw_body io.ReadCloser) (map[string]interface{}, io.ReadCloser) {
 		// Leer el cuerpo de la solicitud
 		bodyBytes, err := io.ReadAll(raw_body)
 		if err != nil {
-			log.Println("Error reading request body:", err)
+			golog.Error(context.Background(), "Error reading request body:", err)
 			return nil, raw_body
 		}
 		raw_body = io.NopCloser(bytes.NewBuffer(bodyBytes))

@@ -1,8 +1,10 @@
 package notfound
 
 import (
-	"log"
+	"context"
 	"net/http"
+
+	"github.com/Nemutagk/golog"
 )
 
 type ResponseRecorder struct {
@@ -28,7 +30,7 @@ func CustomMuxHandler(mux *http.ServeMux, notFoundHandler http.HandlerFunc) http
 		// Crear un ResponseRecorder temporal para capturar la respuesta del mux
 		rec := &ResponseRecorder{ResponseWriter: w, status: 200}
 		mux.ServeHTTP(rec, r)
-		log.Println("Request:", r.Method, r.URL.Path, "Status Code:", rec.status)
+		golog.Log(context.Background(), "Request:", r.Method, r.URL.Path, "Status Code:", rec.status)
 		if rec.status == 404 {
 			notFoundHandler(w, r)
 		}

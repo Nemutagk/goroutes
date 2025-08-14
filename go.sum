@@ -1,11 +1,15 @@
 github.com/Nemutagk/godb v1.3.0 h1:wxH9FybrBDk7/AayThfmU6qusgSIuFFDPAdFf3rgTVQ=
 github.com/Nemutagk/godb v1.3.0/go.mod h1:tqawBQ0v3cW57fXSJ1ZRaOV4MleHzGCVl9DTRiX1oJk=
+github.com/Nemutagk/godb v1.4.0 h1:uRhP6faTKufsZ7AWTY7cposyjYSnbnIeSvhoKBaU7Y4=
+github.com/Nemutagk/godb v1.4.0/go.mod h1:HOFruhQMpc8wbfH1Joo3VteosLzp2IIdUhEM8zcrdS8=
 github.com/Nemutagk/goenvars v1.3.5 h1:KunYp1ypN9WOcl1HZ6RS0ca0d3+4jAKzx9Mb5fALgDk=
 github.com/Nemutagk/goenvars v1.3.5/go.mod h1:RQH+GyuKb1TAiKGs3X29jgHDVWxM9EHlfjIasYKCKA0=
 github.com/Nemutagk/goenvars v1.4.0 h1:K83eNxmRQSrVHacWmPDW+pxuH+FM1rjkGXNiG/FUVQM=
 github.com/Nemutagk/goenvars v1.4.0/go.mod h1:RQH+GyuKb1TAiKGs3X29jgHDVWxM9EHlfjIasYKCKA0=
 github.com/Nemutagk/goerrors v1.2.2 h1:4S8uEJw06IcQCFJlAQMoCaTgeri1/3Z/o2haCiZqqZU=
 github.com/Nemutagk/goerrors v1.2.2/go.mod h1:Q+SeEcw23yEFsstLkOBAt7Q4KrL+O4FBK91FgYy5k2g=
+github.com/Nemutagk/golog v1.0.2 h1:Zo0R/B0ur73y6PDSDibixZqIwemdZJbPlDXflTv0H0o=
+github.com/Nemutagk/golog v1.0.2/go.mod h1:fTbOnXl7FadjtnNDA+SvA3s7sU1q5qXaNDhE7sswLNU=
 github.com/aws/aws-sdk-go-v2 v1.36.3 h1:mJoei2CxPutQVxaATCzDUjcZEjVRdpsiiXi2o38yqWM=
 github.com/aws/aws-sdk-go-v2 v1.36.3/go.mod h1:LLXuLpgzEbD766Z5ECcRmi8AzSwfZItDtmABVkRLGzg=
 github.com/aws/aws-sdk-go-v2/config v1.29.14 h1:f+eEi/2cKCg9pqKBoAIwRGzVb70MRKqWX4dg1BDcSJM=
