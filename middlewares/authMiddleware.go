@@ -18,6 +18,7 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 		golog.Log(context.Background(), "==================> AuthMiddleware called")
 		if route.Auth == nil {
 			golog.Log(context.Background(), "No auth middleware defined for this route, allowing access")
+			golog.Log(context.Background(), "==================> AuthMiddleware END")
 
 			next(w, r)
 			return
@@ -26,6 +27,7 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 		token := r.Header.Get("Authorization")
 		if token == "" {
 			golog.Error(context.Background(), "No token provided, denying access")
+			golog.Log(context.Background(), "==================> AuthMiddleware END")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -40,6 +42,7 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 			if httpErr, ok := err.(*service.HTTPError); ok {
 				golog.Error(context.Background(), "Error from account service:", httpErr.Status)
 				helper.PrettyPrint(httpErr)
+				golog.Log(context.Background(), "==================> AuthMiddleware END")
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(httpErr.Code)
 				w.Write([]byte(httpErr.Body))
@@ -47,11 +50,13 @@ func AuthMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 			}
 
 			golog.Error(context.Background(), "Error validating token:", err)
+			golog.Log(context.Background(), "==================> AuthMiddleware END")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), contextKey("auth"), res)
+		golog.Log(context.Background(), "==================> AuthMiddleware END")
 
 		next(w, r.WithContext(ctx))
 	}

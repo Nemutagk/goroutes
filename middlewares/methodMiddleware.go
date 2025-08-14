@@ -14,9 +14,12 @@ func MethodMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 	return func(wr http.ResponseWriter, r *http.Request) {
 		golog.Log(context.Background(), "==================> MethodMiddleware called")
 		if r.Method != route.Method {
+			golog.Log(context.Background(), "==================> MethodMiddleware called END")
 			http.Error(wr, "", http.StatusNotFound)
 			return
 		}
+
+		golog.Log(context.Background(), "==================> MethodMiddleware called END")
 		next(wr, r)
 	}
 }

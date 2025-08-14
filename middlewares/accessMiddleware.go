@@ -48,6 +48,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if dbListConn == nil {
 			golog.Error(r.Context(), "No database connection list provided")
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
@@ -59,6 +60,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if err_con != nil {
 			golog.Error(r.Context(), "Error getting database connection:", err_con)
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_ERROR)
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
@@ -78,6 +80,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		}).Decode(&result)
 
 		if err == nil {
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			// IP is blacklisted
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
@@ -93,6 +96,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if err_list != nil {
 			golog.Error(r.Context(), "Error finding access log:", err_list)
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			// Error to find access log, return 500
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_ERROR)
 			wr.WriteHeader(http.StatusInternalServerError)
@@ -121,6 +125,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			if err != nil {
 				golog.Error(r.Context(), "Error inserting black list log:", err)
 			}
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_FORBIDDEN)
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
@@ -134,6 +139,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 		})
 
 		if access_denied_err != nil {
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			// IP is blacklisted
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_BLACKLISTED)
 			wr.WriteHeader(http.StatusForbidden)
@@ -159,6 +165,7 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 			if err != nil {
 				golog.Error(r.Context(), "Error inserting black list log:", err)
 			}
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			wr.Header().Set("X-Request-Error", ACCESS_CODE_FORBIDDEN)
 			wr.WriteHeader(http.StatusForbidden)
 			wr.Write([]byte("Access denied"))
@@ -188,11 +195,13 @@ func AccessMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn
 
 		if err != nil {
 			golog.Error(r.Context(), "Error inserting access log:", err)
+			golog.Log(r.Context(), "==================> AccessMiddleware END")
 			wr.WriteHeader(http.StatusInternalServerError)
 			wr.Write([]byte("Internal server error"))
 			return
 		}
 
+		golog.Log(context.Background(), "==================> AuthMiddleware END")
 		// IP is not blacklisted, proceed with the request
 		next(wr, r)
 	}

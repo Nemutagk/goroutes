@@ -30,10 +30,9 @@ func InfoMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 			clientIp = strings.Split(clientIp, ":")[0]
 		}
 
-		golog.Log(context.Background(), "Client IP: %s\n", clientIp)
+		golog.Log(context.Background(), "Client IP:"+clientIp)
 		golog.Log(context.Background(), "Route path:"+r.URL.String())
 		golog.Log(context.Background(), "Route method:"+route.Method)
-		golog.Log(context.Background(), "==================> InfoMiddleware called ending")
 
 		// Generate unique request id with uuid v7
 
@@ -47,6 +46,7 @@ func InfoMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 		ctx := context.WithValue(r.Context(), "request_id", requestId)
 		r = r.WithContext(ctx)
 
+		golog.Log(context.Background(), "==================> InfoMiddleware called END")
 		next(wr, r)
 	}
 }
