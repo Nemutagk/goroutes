@@ -1,38 +1,74 @@
 package notfound
 
 import (
-	"context"
+	"bytes"
 	"net/http"
-
-	"github.com/Nemutagk/golog"
 )
 
 type ResponseRecorder struct {
-	http.ResponseWriter
 	status      int
 	wroteHeader bool
-	wroteBody   bool
+	body        bytes.Buffer
+	header      http.Header
+}
+
+func NewResponseRecorder() *ResponseRecorder {
+	return &ResponseRecorder{
+		header: make(http.Header),
+	}
+}
+
+func (r *ResponseRecorder) Header() http.Header {
+	return r.header
 }
 
 func (r *ResponseRecorder) WriteHeader(code int) {
+	if r.wroteHeader {
+		return
+	}
 	r.status = code
 	r.wroteHeader = true
-	r.ResponseWriter.WriteHeader(code)
 }
 
 func (r *ResponseRecorder) Write(b []byte) (int, error) {
-	r.wroteBody = true
-	return r.ResponseWriter.Write(b)
+	if !r.wroteHeader {
+		r.WriteHeader(http.StatusOK)
+	}
+	return r.body.Write(b)
+}
+
+func (r *ResponseRecorder) Status() int {
+	return r.status
 }
 
 func CustomMuxHandler(mux *http.ServeMux, notFoundHandler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Crear un ResponseRecorder temporal para capturar la respuesta del mux
-		rec := &ResponseRecorder{ResponseWriter: w, status: 200}
-		mux.ServeHTTP(rec, r)
-		golog.Log(context.Background(), "Request:", r.Method, r.URL.Path, "Status Code:", rec.status)
-		if rec.status == 404 {
+		h, pattern := mux.Handler(r)
+
+		// Fallback: patrón "/" para paths distintos de "/" (cuando "/" actúa como catch-all)
+		if r.URL.Path != "/" && pattern == "/" {
 			notFoundHandler(w, r)
+			return
 		}
+
+		rr := NewResponseRecorder()
+		h.ServeHTTP(rr, r)
+		if rr.status == 0 {
+			rr.status = http.StatusOK
+		}
+
+		// Solo si NO existe ruta realmente (pattern == "") usamos notFoundHandler
+		if rr.status == http.StatusNotFound && pattern == "" {
+			notFoundHandler(w, r)
+			return
+		}
+
+		for k, vals := range rr.header {
+			for _, v := range vals {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(rr.status)
+		_, _ = w.Write(rr.body.Bytes())
 	}
 }

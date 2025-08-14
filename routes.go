@@ -30,7 +30,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbC
 	totalRouteList := make([]string, 0)
 	for path, route := range globalRouteList {
 		totalRouteList = append(totalRouteList, route.Method+": "+path)
-		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
+		server.HandleFunc(path, applyMiddleware(route))
 	}
 
 	if goenvars.GetEnvBool("GOROUTES_DEBUG", false) {
@@ -77,15 +77,15 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 				routeDefine.Middlewares = &parentMiddleware
 			} else {
 				// mws := append(*routeDefine.Middlewares, parentMiddleware...)
-				if containsMiddleware(*routeDefine.Middlewares, middlewares.InfoMiddleware) {
+				if !containsMiddleware(*routeDefine.Middlewares, middlewares.InfoMiddleware) {
 					mvs := append(*routeDefine.Middlewares, middlewares.InfoMiddleware)
 					routeDefine.Middlewares = &mvs
 				}
-				if containsMiddleware(*routeDefine.Middlewares, middlewares.MethodMiddleware) {
+				if !containsMiddleware(*routeDefine.Middlewares, middlewares.MethodMiddleware) {
 					mvs := append(*routeDefine.Middlewares, middlewares.MethodMiddleware)
 					routeDefine.Middlewares = &mvs
 				}
-				if containsMiddleware(*routeDefine.Middlewares, middlewares.CorsMiddleware) {
+				if !containsMiddleware(*routeDefine.Middlewares, middlewares.CorsMiddleware) {
 					mvs := append(*routeDefine.Middlewares, middlewares.CorsMiddleware)
 					routeDefine.Middlewares = &mvs
 				}
@@ -161,32 +161,27 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 	return false
 }
 
-func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
+func applyMiddleware(route definitions.Route) http.HandlerFunc {
+	defaultMiddlewares := []definitions.Middleware{
+		middlewares.CorsMiddleware,
+		middlewares.MethodMiddleware,
+		middlewares.AccessMiddleware,
+		middlewares.InfoMiddleware,
+	}
+
 	if route.Group == nil {
 		if route.Middlewares == nil {
-			route_list_middleware := make([]definitions.Middleware, 0)
-			route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
-			route_list_middleware = append(route_list_middleware, middlewares.MethodMiddleware)
-			route_list_middleware = append(route_list_middleware, middlewares.CorsMiddleware)
-			route.Middlewares = &route_list_middleware
+			route.Middlewares = &defaultMiddlewares
 		} else {
-			route_list_middleware := *route.Middlewares
-			if containsMiddleware(route_list_middleware, middlewares.InfoMiddleware) {
-				route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
-			}
-			if containsMiddleware(route_list_middleware, middlewares.MethodMiddleware) {
-				route_list_middleware = append(route_list_middleware, middlewares.MethodMiddleware)
-			}
-			if containsMiddleware(route_list_middleware, middlewares.CorsMiddleware) {
-				route_list_middleware = append(route_list_middleware, middlewares.CorsMiddleware)
-			}
-			route.Middlewares = &route_list_middleware
-		}
+			route_list_middleware := route.Middlewares
 
-		if route.Middlewares != nil && len(*route.Middlewares) > 0 {
-			for _, middleware := range *route.Middlewares {
-				route.Action = middleware(route.Action, route, dbListConn)
+			for _, mv := range defaultMiddlewares {
+				if !containsMiddleware(*route_list_middleware, mv) {
+					*route_list_middleware = append(*route_list_middleware, mv)
+				}
 			}
+
+			route.Middlewares = route_list_middleware
 		}
 
 		return route.Action
@@ -195,34 +190,33 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 			if sub_route, exists := route.Group[req.Method]; exists {
 
 				if sub_route.Middlewares == nil {
-					route_list_middleware := make([]definitions.Middleware, 0)
-					route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
-					route_list_middleware = append(route_list_middleware, middlewares.MethodMiddleware)
-					route_list_middleware = append(route_list_middleware, middlewares.CorsMiddleware)
-					sub_route.Middlewares = &route_list_middleware
+					sub_route.Middlewares = &defaultMiddlewares
 				} else {
-					route_list_middleware := *sub_route.Middlewares
-					if containsMiddleware(route_list_middleware, middlewares.InfoMiddleware) {
-						route_list_middleware = append(route_list_middleware, middlewares.InfoMiddleware)
-					}
-					if containsMiddleware(route_list_middleware, middlewares.MethodMiddleware) {
-						route_list_middleware = append(route_list_middleware, middlewares.MethodMiddleware)
-					}
-					if containsMiddleware(route_list_middleware, middlewares.CorsMiddleware) {
-						route_list_middleware = append(route_list_middleware, middlewares.CorsMiddleware)
-					}
-					sub_route.Middlewares = &route_list_middleware
-				}
+					route_list_middleware := route.Middlewares
 
-				if sub_route.Middlewares != nil && len(*sub_route.Middlewares) > 0 {
-					for _, middleware := range *sub_route.Middlewares {
-						sub_route.Action = middleware(sub_route.Action, sub_route, dbListConn)
+					for _, mv := range defaultMiddlewares {
+						if !containsMiddleware(*route_list_middleware, mv) {
+							*route_list_middleware = append(*route_list_middleware, mv)
+						}
 					}
+
+					sub_route.Middlewares = route_list_middleware
 				}
 
 				sub_route.Action(res, req)
 				return
 			}
+
+			golog.Error(req.Context(), "Route not found:", req.Method, req.URL.Path)
+			res.Header().Set("Content-Type", "application/json")
+			res.WriteHeader(http.StatusNotFound)
+			jsonResponse, err := json.Marshal(map[string]string{"error": "Method not supported"})
+			if err != nil {
+				golog.Error(req.Context(), "Error marshalling JSON response:", err)
+				GoErrorResponse(res, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, goerrors.ConvertError(err)))
+				return
+			}
+			res.Write(jsonResponse)
 		}
 	}
 }
