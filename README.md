@@ -265,4 +265,4 @@ func main() {
 
 ## Licencia
 
-MIT (ajusta según corresponda).
+Copyright (c) 2025 Jose Alberto Cabrera
