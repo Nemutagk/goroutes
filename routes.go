@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
+	"runtime"
+	"slices"
 
 	"github.com/Nemutagk/godb/definitions/db"
 	"github.com/Nemutagk/goenvars"
@@ -12,30 +15,48 @@ import (
 	"github.com/Nemutagk/golog"
 	"github.com/Nemutagk/goroutes/definitions"
 	"github.com/Nemutagk/goroutes/definitions/notfound"
-	"github.com/Nemutagk/goroutes/helper"
 	"github.com/Nemutagk/goroutes/middlewares"
 )
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
+	defaultMiddlewares := []definitions.Middleware{
+		middlewares.InfoMiddleware,
+		middlewares.CorsMiddleware,
+		middlewares.AccessMiddleware,
+		middlewares.MethodMiddleware,
+	}
+
 	globalRouteList := map[string]definitions.Route{}
 
 	for _, groupRoute := range list_routes {
-		routes := checkRouteGroup(groupRoute, "", nil)
+		routes := checkRouteGroup(groupRoute, "", defaultMiddlewares)
 
 		for tmp_path, tmp_route := range routes {
 			globalRouteList[tmp_path] = tmp_route
 		}
 	}
 
-	totalRouteList := make([]string, 0)
+	info := "\n"
 	for path, route := range globalRouteList {
-		totalRouteList = append(totalRouteList, route.Method+": "+path)
+		info += fmt.Sprintf("%s: %s", route.Method, path)
+		if len(*route.Middlewares) > 0 {
+			info += "\n Middlewares: "
+			for _, mw := range *route.Middlewares {
+				fn := runtime.FuncForPC(reflect.ValueOf(mw).Pointer())
+				name := "<unknown>"
+				if fn != nil {
+					name = fn.Name()
+				}
+				info += fmt.Sprintf("%s\n", name)
+			}
+		}
+
 		server.HandleFunc(path, applyMiddleware(route, dbConnectionsList))
 	}
 
 	if goenvars.GetEnvBool("GOROUTES_DEBUG", false) {
 		golog.Log(context.Background(), "Routes loaded successfully")
-		helper.PrettyPrint(totalRouteList)
+		golog.Log(context.Background(), info)
 	}
 
 	return server
@@ -72,29 +93,29 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 			continue
 		}
 
-		if len(parentMiddleware) > 0 {
-			if routeDefine.Middlewares == nil {
-				routeDefine.Middlewares = &parentMiddleware
-			} else {
-				// mws := append(*routeDefine.Middlewares, parentMiddleware...)
-				if !containsMiddleware(*routeDefine.Middlewares, middlewares.InfoMiddleware) {
-					mvs := append(*routeDefine.Middlewares, middlewares.InfoMiddleware)
-					routeDefine.Middlewares = &mvs
-				}
-				if !containsMiddleware(*routeDefine.Middlewares, middlewares.MethodMiddleware) {
-					mvs := append(*routeDefine.Middlewares, middlewares.MethodMiddleware)
-					routeDefine.Middlewares = &mvs
-				}
-				if !containsMiddleware(*routeDefine.Middlewares, middlewares.CorsMiddleware) {
-					mvs := append(*routeDefine.Middlewares, middlewares.CorsMiddleware)
-					routeDefine.Middlewares = &mvs
-				}
-			}
-		}
-
 		subPath := preparePath(routeDefine.Path, path)
 
 		routeList = routeExists(routeList, subPath, routeDefine)
+
+		for path, route := range routeList {
+			if route.Middlewares == nil || len(*route.Middlewares) == 0 {
+				tmpRoute := route
+				tmpRoute.Middlewares = &parentMiddleware
+
+				routeList[path] = tmpRoute
+			} else {
+				tmpRoute := route
+				for _, pmw := range parentMiddleware {
+					if !containsMiddleware(*tmpRoute.Middlewares, pmw) {
+						*tmpRoute.Middlewares = append([]definitions.Middleware{pmw}, *tmpRoute.Middlewares...)
+					}
+				}
+
+				slices.Reverse(*tmpRoute.Middlewares)
+
+				routeList[path] = tmpRoute
+			}
+		}
 	}
 
 	return routeList
@@ -162,74 +183,27 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 }
 
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
-	// Queremos que InfoMiddleware sea el primero que se EJECUTE (outermost)
-	defaultMiddlewares := []definitions.Middleware{
-		middlewares.InfoMiddleware,
-		middlewares.CorsMiddleware,
-		middlewares.MethodMiddleware,
-		middlewares.AccessMiddleware,
-	}
-
-	buildChain := func(rt definitions.Route) http.HandlerFunc {
-		var finalList []definitions.Middleware
-		if rt.Middlewares == nil {
-			finalList = append(finalList, defaultMiddlewares...)
-		} else {
-			// Copiamos manteniendo orden existente
-			finalList = append(finalList, *rt.Middlewares...)
-			// Garantizamos que InfoMiddleware esté presente y al inicio
-			if !containsMiddleware(finalList, middlewares.InfoMiddleware) {
-				finalList = append([]definitions.Middleware{middlewares.InfoMiddleware}, finalList...)
-			} else {
-				// Si estaba pero no en posición 0 lo movemos
-				if fmt.Sprintf("%p", finalList[0]) != fmt.Sprintf("%p", middlewares.InfoMiddleware) {
-					tmp := []definitions.Middleware{middlewares.InfoMiddleware}
-					for _, mw := range finalList {
-						if fmt.Sprintf("%p", mw) != fmt.Sprintf("%p", middlewares.InfoMiddleware) {
-							tmp = append(tmp, mw)
-						}
-					}
-					finalList = tmp
-				}
-			}
-			// Añadimos los que falten (excepto Info ya tratado)
-			for _, dmw := range defaultMiddlewares {
-				if !containsMiddleware(finalList, dmw) {
-					finalList = append(finalList, dmw)
-				}
-			}
-		}
-
-		// Construcción de cadena: índice 0 se ejecuta primero (envolvemos en orden inverso)
-		handler := rt.Action
-		for i := len(finalList) - 1; i >= 0; i-- {
-			handler = finalList[i](handler, rt, dbListConn)
-		}
-		return handler
-	}
-
 	if route.Group == nil {
-		return buildChain(route)
-	}
-
-	return func(res http.ResponseWriter, req *http.Request) {
-		if subRoute, exists := route.Group[req.Method]; exists {
-			handler := buildChain(subRoute)
-			handler(res, req)
-			return
+		for _, mw := range *route.Middlewares {
+			route.Action = mw(route.Action, route, dbListConn)
 		}
 
-		golog.Error(req.Context(), "Route not found:", req.Method, req.URL.Path)
-		res.Header().Set("Content-Type", "application/json")
-		res.WriteHeader(http.StatusNotFound)
-		jsonResponse, err := json.Marshal(map[string]string{"error": "Method not supported"})
-		if err != nil {
-			golog.Error(req.Context(), "Error marshalling JSON response:", err)
-			GoErrorResponse(res, *goerrors.NewGError("Failed to marshal JSON", goerrors.StatusInternalServerError, nil, goerrors.ConvertError(err)))
-			return
-		}
-		res.Write(jsonResponse)
+		return route.Action
 	}
+
+	subRoute, exists := route.Group[route.Method]
+	if !exists {
+		golog.Error(context.Background(), "No sub-route found for method:", route.Method, "in group:", route.Path)
+		return func(w http.ResponseWriter, r *http.Request) {
+			GoErrorResponse(w, *goerrors.NewGError("Method not allowed", goerrors.StatusMethodNotAllowed, nil, nil))
+		}
+	}
+
+	for _, mw := range *subRoute.Middlewares {
+		subRoute.Action = mw(subRoute.Action, subRoute, dbListConn)
+	}
+
+	return subRoute.Action
 }
 
 func GoErrorResponse(w http.ResponseWriter, err goerrors.GError) {
