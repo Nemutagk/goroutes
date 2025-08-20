@@ -36,18 +36,25 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbC
 		}
 	}
 
-	info := "\n"
-	for path, route := range globalRouteList {
-		info += fmt.Sprintf("%s: %s", route.Method, path)
-		if len(*route.Middlewares) > 0 {
-			info += "\n Middlewares: "
+	keys := make([]string, 0, len(globalRouteList))
+	for k := range globalRouteList {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys) // Sort routes by path
+	info := ""
+	for _, path := range keys {
+		route := globalRouteList[path]
+
+		info += fmt.Sprintf("\n%s:\t%s", route.Method, path)
+		if len(*route.Middlewares) > 0 && goenvars.GetEnvBool("GOROUTES_DEBUG_MIDDLEWARES", false) {
+			info += "\n    Middlewares:\n"
 			for _, mw := range *route.Middlewares {
 				fn := runtime.FuncForPC(reflect.ValueOf(mw).Pointer())
 				name := "<unknown>"
 				if fn != nil {
 					name = fn.Name()
 				}
-				info += fmt.Sprintf("%s\n", name)
+				info += fmt.Sprintf("        %s\n", name)
 			}
 		}
 
@@ -55,8 +62,7 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbC
 	}
 
 	if goenvars.GetEnvBool("GOROUTES_DEBUG", false) {
-		golog.Log(context.Background(), "Routes loaded successfully")
-		golog.Log(context.Background(), info)
+		golog.Log(context.Background(), "Routes loaded successfully", info)
 	}
 
 	return server
@@ -100,13 +106,24 @@ func checkRouteGroup(routeGroup definitions.RouteGroup, parentPath string, paren
 		for path, route := range routeList {
 			if route.Middlewares == nil || len(*route.Middlewares) == 0 {
 				tmpRoute := route
-				tmpRoute.Middlewares = &parentMiddleware
+				listMiddlewares := make([]definitions.Middleware, 0)
+				for _, mw := range parentMiddleware {
+					if tmpRoute.ExcludeMiddlewares != nil && containsMiddleware(*tmpRoute.ExcludeMiddlewares, mw) {
+						continue
+					}
+					listMiddlewares = append(listMiddlewares, mw)
+				}
 
+				tmpRoute.Middlewares = &listMiddlewares
 				routeList[path] = tmpRoute
 			} else {
 				tmpRoute := route
 				for _, pmw := range parentMiddleware {
 					if !containsMiddleware(*tmpRoute.Middlewares, pmw) {
+						if tmpRoute.ExcludeMiddlewares != nil && containsMiddleware(*tmpRoute.ExcludeMiddlewares, pmw) {
+							continue
+						}
+
 						*tmpRoute.Middlewares = append([]definitions.Middleware{pmw}, *tmpRoute.Middlewares...)
 					}
 				}
