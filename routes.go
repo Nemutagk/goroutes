@@ -248,23 +248,24 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 		return route.Action
 	}
 
-	// si la ruta tiene un grupo, buscamos el subgrupo correspondiente al método de la ruta que
-	// se está ejecutando
-	subRoute, exists := route.Group[route.Method]
-	if !exists {
-		golog.Error(context.Background(), "No sub-route found for method:", route.Method, "in group:", route.Path)
-		return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// si la ruta tiene un grupo, buscamos el subgrupo correspondiente al método de la ruta que
+		// se está ejecutando
+		subRoute, exists := route.Group[r.Method]
+		if !exists {
+			golog.Error(context.Background(), "No sub-route found for method:", route.Method, "in group:", route.Path)
 			GoErrorResponse(w, *goerrors.NewGError("Method not allowed", goerrors.StatusMethodNotAllowed, nil, nil))
+			return
 		}
-	}
 
-	if subRoute.Middlewares != nil && len(*subRoute.Middlewares) > 0 {
-		for i := len(*subRoute.Middlewares) - 1; i >= 0; i-- {
-			subRoute.Action = (*subRoute.Middlewares)[i](subRoute.Action, subRoute, dbListConn)
+		if subRoute.Middlewares != nil && len(*subRoute.Middlewares) > 0 {
+			for i := len(*subRoute.Middlewares) - 1; i >= 0; i-- {
+				subRoute.Action = (*subRoute.Middlewares)[i](subRoute.Action, subRoute, dbListConn)
+			}
 		}
-	}
 
-	return subRoute.Action
+		subRoute.Action(w, r)
+	}
 }
 
 func GoErrorResponse(w http.ResponseWriter, err goerrors.GError) {
