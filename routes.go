@@ -23,7 +23,6 @@ func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbC
 		middlewares.InfoMiddleware,
 		middlewares.CorsMiddleware,
 		middlewares.AccessMiddleware,
-		middlewares.MethodMiddleware,
 	}
 
 	globalRouteList := map[string]definitions.Route{}
@@ -114,11 +113,16 @@ func checkRoute(rg definitions.RouteGroup, parentPath string, parentMiddleware [
 }
 
 func addMiddleware(route definitions.Route, parentMiddleware []definitions.Middleware) definitions.Route {
-	// No hay middlewares definidos en la ruta, se agregan los del padre
+	copySlice := func(in []definitions.Middleware) []definitions.Middleware {
+		out := make([]definitions.Middleware, len(in))
+		copy(out, in)
+		return out
+	}
+
 	if route.Middlewares == nil || len(*route.Middlewares) == 0 {
-		//si no hay exclusión de middlewares, se agregan todos los del padre
 		if route.ExcludeMiddlewares == nil || len(*route.ExcludeMiddlewares) == 0 {
-			route.Middlewares = &parentMiddleware
+			mws := copySlice(parentMiddleware)
+			route.Middlewares = &mws
 			return route
 		}
 
@@ -235,10 +239,9 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	// si la ruta no tiene grupo ejecutamos retornamos la acción directamente
 	if route.Group == nil || len(route.Group) == 0 {
-		if route.Middlewares != nil {
-			// aplicamos los middlewares a la acción de la ruta
-			for _, mw := range *route.Middlewares {
-				route.Action = mw(route.Action, route, dbListConn)
+		if route.Middlewares != nil && len(*route.Middlewares) > 0 {
+			for i := len(*route.Middlewares) - 1; i >= 0; i-- {
+				route.Action = (*route.Middlewares)[i](route.Action, route, dbListConn)
 			}
 		}
 
@@ -255,9 +258,10 @@ func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnect
 		}
 	}
 
-	// aplicamos los middlewares a la acción del subgrupo
-	for _, mw := range *subRoute.Middlewares {
-		subRoute.Action = mw(subRoute.Action, subRoute, dbListConn)
+	if subRoute.Middlewares != nil && len(*subRoute.Middlewares) > 0 {
+		for i := len(*subRoute.Middlewares) - 1; i >= 0; i-- {
+			subRoute.Action = (*subRoute.Middlewares)[i](subRoute.Action, subRoute, dbListConn)
+		}
 	}
 
 	return subRoute.Action
