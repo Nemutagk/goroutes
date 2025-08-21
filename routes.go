@@ -333,29 +333,29 @@ func RawResponse(w http.ResponseWriter, data []byte, statusCode int, headers *ma
 }
 
 func showRoutesExists(routeList map[string]definitions.Route) {
-	all_routes := []string{}
-
 	keys := make([]string, 0, len(routeList))
 	for k := range routeList {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
+	totalRoutes := 0
 	txtInfo := "======================================================\n" + "Registered routes:\n"
 	for _, path := range keys {
 		route := routeList[path]
 		if route.Group == nil {
 			txtInfo += getInfoRoute(route, path)
-
+			totalRoutes++
 			continue
 		}
 
 		for _, subRoute := range route.Group {
 			txtInfo += getInfoRoute(subRoute, path)
+			totalRoutes++
 		}
 	}
 
-	txtInfo += "Total routes registered: " + fmt.Sprint(len(all_routes)) + "\n"
+	txtInfo += "Total routes registered: " + fmt.Sprint(totalRoutes) + "\n"
 	txtInfo += "======================================================\n"
 	fmt.Println(txtInfo)
 }
