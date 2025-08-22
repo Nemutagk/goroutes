@@ -237,6 +237,15 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		awsHealthChecker := r.Header.Get("User-Agent")
+
+		if goenvars.GetEnvBool("GOROUTES_DISABLED_AWS_HEALTH_CHECKER", true) && strings.Contains(awsHealthChecker, "ELB-HealthChecker") {
+			// Si el header User-Agent contiene "ELB-HealthChecker", retornamos un 200 OK
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK!"))
+			return
+		}
+
 		// si la ruta no tiene grupo ejecutamos retornamos la acción directamente
 		if route.Group == nil || len(route.Group) == 0 {
 			if route.Middlewares != nil && len(*route.Middlewares) > 0 {
