@@ -20,7 +20,6 @@ import (
 
 func LoadRoutes(list_routes []definitions.RouteGroup, server *http.ServeMux, dbConnectionsList map[string]db.DbConnection) *http.ServeMux {
 	defaultMiddlewares := []definitions.Middleware{
-		middlewares.InfoMiddleware,
 		middlewares.CorsMiddleware,
 		middlewares.AccessMiddleware,
 	}
@@ -237,23 +236,42 @@ func containsMiddleware(middleware []definitions.Middleware, mw definitions.Midd
 }
 
 func applyMiddleware(route definitions.Route, dbListConn map[string]db.DbConnection) http.HandlerFunc {
-	// si la ruta no tiene grupo ejecutamos retornamos la acción directamente
-	if route.Group == nil || len(route.Group) == 0 {
-		if route.Middlewares != nil && len(*route.Middlewares) > 0 {
-			for i := len(*route.Middlewares) - 1; i >= 0; i-- {
-				route.Action = (*route.Middlewares)[i](route.Action, route, dbListConn)
-			}
-		}
-
-		return route.Action
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
+		// si la ruta no tiene grupo ejecutamos retornamos la acción directamente
+		if route.Group == nil || len(route.Group) == 0 {
+			if route.Middlewares != nil && len(*route.Middlewares) > 0 {
+				for i := len(*route.Middlewares) - 1; i >= 0; i-- {
+					route.Action = (*route.Middlewares)[i](route.Action, route, dbListConn)
+				}
+			}
+
+			if r.Method == http.MethodOptions {
+				route.Action = middlewares.CorsMiddleware(route.Action, route, dbListConn)
+				route.Action(w, r)
+				return
+			}
+
+			if r.Method != route.Method {
+				golog.Error(context.Background(), "Method not allowed:", r.Method, "for route:", r.URL.Path)
+				GoErrorResponse(w, *goerrors.NewGError("Method not allowed", goerrors.StatusMethodNotAllowed, nil, nil))
+				return
+			}
+
+			route.Action(w, r)
+			return
+		}
 		// si la ruta tiene un grupo, buscamos el subgrupo correspondiente al método de la ruta que
 		// se está ejecutando
+
+		if r.Method == http.MethodOptions {
+			subRouteTmp := route.Group[r.Method]
+			subRouteTmp.Action = middlewares.CorsMiddleware(subRouteTmp.Action, route, dbListConn)
+			route.Group[r.Method] = subRouteTmp
+		}
+
 		subRoute, exists := route.Group[r.Method]
 		if !exists {
-			golog.Error(context.Background(), "No sub-route found for method:", route.Method, "in group:", route.Path)
+			golog.Error(context.Background(), "No sub-route found for method:", r.Method, "in group:", r.URL.Path)
 			GoErrorResponse(w, *goerrors.NewGError("Method not allowed", goerrors.StatusMethodNotAllowed, nil, nil))
 			return
 		}

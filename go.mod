@@ -13,7 +13,7 @@ require (
 
 require (
 	github.com/Nemutagk/goerrors v1.2.2 // indirect
-	github.com/Nemutagk/golog v1.0.2 // indirect
+	github.com/Nemutagk/golog v1.3.8 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.14 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.67 // indirect
@@ -40,3 +40,5 @@ require (
 	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 )
+
+// replace github.com/Nemutagk/golog => /opt/modules/golog

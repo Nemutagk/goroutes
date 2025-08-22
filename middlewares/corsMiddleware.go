@@ -21,6 +21,9 @@ func CorsMiddleware(next http.HandlerFunc, route definitions.Route, dbListConn m
 			wr.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 
+		golog.Log(r.Context(), "Request Method:", r.Method)
+		golog.Log(r.Context(), "Request Method Options:", http.MethodOptions)
+
 		if r.Method == http.MethodOptions {
 			golog.Log(r.Context(), "==================> CORS Middleware END (preflight)")
 			wr.WriteHeader(http.StatusOK)
