@@ -197,7 +197,7 @@ func registerAccessLog(ctx context.Context, dbConn *mongo.Database, wr http.Resp
 		"ip":            clientIp,
 		"real_ip":       clientRealIp,
 		"method":        route.Method,
-		"path":          r.URL.Path,
+		"path":          GetFullRequestURL(r),
 		"response_code": codeStatus,
 		"body":          body,
 		"header":        r.Header,
@@ -346,4 +346,40 @@ func updateRequestStatus(dbConn *mongo.Database, clientIp string, status int) er
 	}
 
 	return nil
+}
+
+func GetFullRequestURL(r *http.Request) string {
+	// Protocolo
+	proto := r.Header.Get("X-Forwarded-Proto")
+	if proto == "" {
+		if r.URL.Scheme != "" {
+			proto = r.URL.Scheme
+		} else if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+
+	// Host
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
+
+	// Puerto
+	port := r.Header.Get("X-Forwarded-Port")
+	// Si el host ya incluye puerto, no lo agregamos
+	if port != "" && !strings.Contains(host, ":") {
+		host = host + ":" + port
+	}
+
+	// Path y query
+	uri := r.Header.Get("X-Forwarded-Uri")
+	if uri == "" {
+		uri = r.RequestURI
+	}
+
+	// Construir URL completa
+	return proto + "://" + host + uri
 }
